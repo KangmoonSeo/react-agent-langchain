@@ -9,6 +9,8 @@ from langchain.agents.format_scratchpad.log import format_log_to_str
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_openai.chat_models import ChatOpenAI
 
+from callbacks import AgentCallbackHandler
+
 load_dotenv()
 
 
@@ -70,7 +72,9 @@ def main():
     
     LLM 실행에서 stop 토큰의 중요성을 이해하게 될 것임!!
     """
-    llm = ChatOpenAI(temperature=0, stop=["\nObservation"])
+    llm = ChatOpenAI(
+        temperature=0, stop=["\nObservation"], callbacks=[AgentCallbackHandler()]
+    )
 
     """
     #
@@ -107,8 +111,9 @@ def main():
 
     question_message = "What is the length in characters of the text DOG?"
 
+    agent_step = ""
     cnt = 1
-    while cnt < 5:
+    while not isinstance(agent_step, AgentFinish):
         agent_step: Union[AgentAction, AgentFinish] = agent.invoke(
             {"input": question_message, "agent_scratchpad": intermediate_steps}
         )
@@ -120,15 +125,13 @@ def main():
             tool_name = agent_step.tool
             tool_to_use = find_tool_by_name(tools, tool_name)
             tool_input = agent_step.tool_input
-            observation = tool_to_use.func(str(tool_input))
 
+            observation = tool_to_use.func(str(tool_input))
             print(f"{observation=}")
             intermediate_steps.append((agent_step, str(observation)))
             cnt += 1
 
-        elif isinstance(agent_step, AgentFinish):
-            print(f"{agent_step.return_values=}")
-            break
+    print(f"{agent_step.return_values=}")
 
 
 if __name__ == "__main__":
